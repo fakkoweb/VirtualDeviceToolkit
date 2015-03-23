@@ -1,3 +1,7 @@
+#ifndef _SDRF_OMV_H_
+#define _SDRF_OMV_H_
+
+
 /*
  * OMV.h
  *
@@ -21,28 +25,31 @@ but might not be as efficient because of the division operation inside the loop.
  * algorithm it's
  *
  *  Created on: Nov 19, 2013
- *      Author: gabriele
+ *      Author: Gabriele Consiglio
  */
 
-#ifndef OMV_H_
-#define OMV_H_
+namespace sdrf
+{
 
-class OMV {
-private:
-	int n;
-	double mean;
-	double M2;
-	double min;
-	bool minCalc;
-public:
-	OMV(const bool use_min_offset = false);
-	virtual ~OMV();
-	void reset();
-	void add(double x);
-	double getMean();
-	double getVariance();
-	double getMin();
-	double getSampleNumber();
-};
+	class OMV {
+	private:
+		unsigned int n;
+		double mean;
+		double M2;
+		double min;
+		bool minCalc;
+	public:
+		OMV(const bool use_min_offset = false);
+		virtual ~OMV();
+		void reset();
+		void add(double x);
+		double getMean();
+		double getVariance();
+		double getMin();
+		unsigned int getSampleNumber();
+	};
 
-#endif /* OMV_H_ */
+}
+
+
+#endif /* _SDRF_OMV_H_ */
