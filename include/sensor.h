@@ -30,10 +30,18 @@
 	#include <mutex>
 	#include <thread>
 	#include <condition_variable>
+	#include <future>
+
 #endif
 
 namespace sdrf
 {
+
+	enum sensor_policy_t
+	{
+		auto_polling,
+		manual_polling
+	};
 
 	typedef struct _STATISTIC_STRUCT
 	{
@@ -46,15 +54,16 @@ namespace sdrf
 		unsigned int valid_samples;
 	} statistic_struct;
 
-
+	template <class raw_elem_type, class refined_elem_type>
 	class Sensor					//ABSTRACT CLASS: only sub-classes can be instantiated!
 	{
 	protected:
 
 		//BUFFERING VARIABLES
-		uint16_t raw_measure;
+		raw_elem_type raw_measure;
 		//OLD:	double format_measure;		//Memorizza una versione convertita di raw_buffer - non più necessaria, ora la misura è convertita su richiesta
 		statistic_struct statistic;
+		unsigned int num_total_samples;
 
 
 		//AVERAGING AND VARIANCE CALCULATION	//asdfg
@@ -77,14 +86,15 @@ namespace sdrf
 
 
 
-		//SAMPLING & CONVERSION
+		//SAMPLING & CONVERSION & MEAN CALCULATION
 		virtual int mtype() = 0;					//returns the type (its code) of measure sensor requests to driver
-		uint16_t sample(){ return board->request(mtype()); };	//Chiamata da get_measure, semplicemente chiama board (la request() col tipo misura richiesto)
-		virtual double convert(const uint16_t) = 0;       	//THIS FUNCTIONS MUST BE SPECIALIZED BY INHERITING CLASSES
-
+		raw_elem_type sample(){ return board->request(mtype()); };	//Chiamata da get_measure, semplicemente chiama board (la request() col tipo misura richiesto)
+		virtual refined_elem_type convert(const raw_elem_type) = 0;       	//THIS FUNCTIONS MUST BE SPECIALIZED BY INHERITING CLASSES
+		virtual void update_statistics();
+		virtual void publish_statistics();
 
 		//SENSOR POLLING
-		Driver<measure_struct, uint16_t>* board;	//Puntatore all'oggetto Driver da cui chiamare la funzione request() per chiedere il campione                   
+		Driver<void, raw_elem_type>* board;	//Puntatore all'oggetto Driver da cui chiamare la funzione request() per chiedere il campione  *** (CASTING IS A PATCH)                 
 		bool autorefresh;                       //TRUE: pooling attivo, FALSE: campionamento solo su richiesta (get_measure)        
 		//Se autorefresh è TRUE: ogni "sample_rate" ms viene richiesta una nuova misura al driver (sample)
 		//Se autorefresh è FALSE, "sample_rate" è ignorato.
@@ -96,6 +106,8 @@ namespace sdrf
 
 		//THREADING STRUCTURES
 		std::mutex rw;				//Guarantees ONLY mutual access between autorefresh thread and external requesting threads
+		std::promise<refined_elem_type> new_sample_p;
+		std::promise<statistic_struct> new_statistic_p;
 		std::condition_variable new_sample;
 		std::condition_variable new_statistic;
 		std::thread* r;
@@ -123,7 +135,7 @@ namespace sdrf
 
 
 		//METODI DI ACCESSO PRIMARI (gestiscono i lock)
-		uint16_t get_raw();	//safe                          	//Restituisce l'ultima misura. Se autorefresh è FALSE ed è trascorso min_sample_rate
+		raw_elem_type get_raw();	//safe                          	//Restituisce l'ultima misura. Se autorefresh è FALSE ed è trascorso min_sample_rate
 		//dall'ultima chiamata, richiede anche una nuova misura (sample), altrimenti da l'ULTIMA effettuata
 		//( in futuro: IMPLEMENTARE una versione che dia il measure_code della misura restituita )
 
@@ -136,9 +148,12 @@ namespace sdrf
 		//- E' UTILE SE SUBITO DOPO VIENE CHIAMATA get_measure
 		void wait_new_statistic(); //safe                               //Stessa cosa di wait_new_sample() ma per media e varianza        
 
+		bool new_sample_is_ready();
+
+		bool new_statistic_is_ready();
 
 		//METODI SECONDARI (sfruttano i metodi primari)
-		double get_measure(){ return convert(get_raw()); };		//Fa la stessa cosa di get_raw(), ma la converte prima di restituirla (ON-THE-GO CONVERSION)
+		refined_elem_type get_measure(){ return convert(get_raw()); };		//Fa la stessa cosa di get_raw(), ma la converte prima di restituirla (ON-THE-GO CONVERSION)
 		virtual std::string stype() = 0;	//returns a string explaining the type of sensor
 		virtual std::string sunits() = 0;	//returns a string explaining the units of measure used
 		void display_measure(){ std::cout << stype() << ": " << get_measure() << " " << sunits() << std::endl; };
@@ -153,7 +168,7 @@ namespace sdrf
 
 		// -- WEAK TIME SYNC version --
 		//This allows to the sample() of the Sensor to call request() of the attached Driver
-		void plug_to(const Driver<measure_struct, uint16_t>& new_board)
+		void plug_to(const Driver<void, raw_elem_type>& new_board)
 		{
 			plug_to(new_board, std::chrono::system_clock::now());	//The logic time instant where sampling begins is set HERE as now()
 		};
@@ -168,7 +183,7 @@ namespace sdrf
 		//ALERT:
 		//It is also possible to set up a manual "start_time" at plug_to() call. If you do, doing it here is useless.
 		//By default, if no "start_time" is ever set, a now() will be called ALWAYS at plug_to phase!
-		void plug_to(const Driver<measure_struct, uint16_t>& new_board, const std::chrono::system_clock::time_point& start_time); //As above, but you set the start_point manually
+		void plug_to(const Driver<void, raw_elem_type>& new_board, const std::chrono::system_clock::time_point& start_time); //As above, but you set the start_point manually
 
 	};
 

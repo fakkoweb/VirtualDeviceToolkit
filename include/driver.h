@@ -43,13 +43,13 @@ namespace sdrf
 	} measure_struct;
 
 
-	//CLASSE NON ISTANZIABILE -- Template che rappresenta una device generica che su richiesta restituisce una struct "data_type" contenente N diversi "elem_type"
-	template <class data_type, class elem_type>
+	//CLASSE NON ISTANZIABILE -- Template che rappresenta una device generica che su richiesta restituisce una struct "raw_data_type" contenente N diversi "raw_elem_type"
+	template <class raw_data_type, class raw_elem_type>
 	class Driver
 	{
 	protected:
-		data_type m;                        //Contains the last raw data extracted by recv_measure
-		const unsigned int n_elems;	    //Number of elements contained into data_type - AUTOMATICALLY INIZIALIZED BY CONSTRUCTOR
+		raw_data_type m;                        //Contains the last raw data extracted by recv_measure
+		const unsigned int n_elems;	    //Number of elements contained into raw_data_type - AUTOMATICALLY INIZIALIZED BY CONSTRUCTOR
 		std::mutex rw;			    //Guarantees mutual access from multiple sensors
 		int state;			    //Keeps track of last state returned by recv_measure() each call - if ERROR, m is set to SDRF_VALUE_INVALID (see config.h)
 		std::chrono::duration< int, std::milli > request_delay;		//GESTIONE DELAY HARDWARE: Se più sensori/processi/thread fanno richiesta al driver di seguito,
@@ -64,22 +64,22 @@ namespace sdrf
 		//	- Minimum delay between requests
 		//CAN BE EXTENDED BY DERIVED CLASSES!!
 
-		virtual int recv_measure() = 0;       //Takes a new data_type from d via HID protocol from physical device
+		virtual int recv_measure() = 0;       //Takes a new raw_data_type from d via HID protocol from physical device
 		//RETURNS SDRF_VALUE_ERROR if the read failed and measure is not valid, SDRF_VALUE_NICE otherwise.
 		//To mark a measure as not valid, a specific "SDRF_VALUE_INVALID" value has been defined in config.h
 
 	public:
-		Driver(const int min_delay = HARDWARE_DELAY) : n_elems(sizeof(data_type) / sizeof(elem_type)){
+		Driver(const int min_delay = HARDWARE_DELAY) : n_elems(sizeof(raw_data_type) / sizeof(raw_elem_type)){
 			if (min_delay <= 0) request_delay = std::chrono::duration< int, std::milli >::zero();
 			else request_delay = std::chrono::milliseconds(min_delay);
 			last_request = std::chrono::steady_clock::now() - request_delay; //This way first recv_measure is always performed regardless of timer
 			state = SDRF_VALUE_ERROR;	//for programming safety, initialize state as SDRF_VALUE_ERROR (even if unlogic)
 		};
-		data_type request_all();   				//A utility method that returns data_type AS A WHOLE
+		raw_data_type request_all();   				//A utility method that returns raw_data_type AS A WHOLE
 		//It has the same rules of request() -- see below
 
-		virtual elem_type request(const unsigned int type);	//RETURNS the elem_type from data_type at position "type".
-		//Argument "type" must be non-zero and elem_type returned will depend on how you defined data_type!
+		virtual raw_elem_type request(const unsigned int type);	//RETURNS the raw_elem_type from raw_data_type at position "type".
+		//Argument "type" must be non-zero and raw_elem_type returned will depend on how you defined raw_data_type!
 		//This method:
 		// - PROTECTS recv_measure() with the "rw" mutex provided
 		// - Tests YOUR ready() condition, which MUST extend the base one

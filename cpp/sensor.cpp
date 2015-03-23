@@ -10,7 +10,8 @@ namespace sdrf
 	////////////////////////////
 	//GENERIC SENSOR PROCEDURES
 
-	Sensor::Sensor(const int sample_rate, const int avg_interval, const bool enable_autorefresh, const bool enable_mean_offset) : MeanGuy(enable_mean_offset)
+	template <class raw_elem_type, class refined_elem_type>
+	Sensor<raw_elem_type, refined_elem_type>::Sensor(const int sample_rate, const int avg_interval, const bool enable_autorefresh, const bool enable_mean_offset) : MeanGuy(enable_mean_offset)
 	{
 
 		//Convert avg_interval in a valid chrono type
@@ -23,14 +24,18 @@ namespace sdrf
 
 		board = NULL;
 		raw_measure = 0;
+		num_total_samples = 0;				//Number of total samples (both VALID and INVALID) picked from Driver
 
+		//Initialization of statistic struct returned to the user
 		statistic.average = 0;
 		statistic.variance = 0;
 		statistic.is_valid = false;		//to be sure it will be set to true!
 		statistic.percentage_validity = 0;
-		statistic.total_samples = 0;
-		statistic.expected_samples = 0;
-		statistic.valid_samples = 0;
+		statistic.total_samples = 0;		//num_total_samples will be assigned to it
+		statistic.expected_samples = statistic_delay.count() / sample_delay.count(); 	//An ESTIMATION of number of expected samples to be picked from Driver;
+		statistic.valid_samples = 0;		//Number of VALID samples actually considered in statistic calculation
+
+
 
 		autorefresh = enable_autorefresh;
 		close_thread = false;
@@ -38,8 +43,8 @@ namespace sdrf
 
 	}
 
-
-	Sensor::~Sensor()
+	template <class raw_elem_type, class refined_elem_type>
+	Sensor<raw_elem_type, refined_elem_type>::~Sensor()
 	{
 		std::unique_lock<std::mutex> access(rw, std::defer_lock);
 
@@ -58,7 +63,8 @@ namespace sdrf
 
 
 	//Like calling destructor + constructor without creating a new object
-	void Sensor::reset()
+	template <class raw_elem_type, class refined_elem_type>
+	void Sensor<raw_elem_type, refined_elem_type>::reset()
 	{
 		std::unique_lock<std::mutex> access(rw, std::defer_lock);
 
@@ -77,14 +83,16 @@ namespace sdrf
 
 		board = NULL;
 		raw_measure = 0;
+		num_total_samples = 0;				//Number of total samples (both VALID and INVALID) picked from Driver
 
+		//Initialization of statistic struct returned to the user
 		statistic.average = 0;
 		statistic.variance = 0;
 		statistic.is_valid = false;		//to be sure it will be set to true!
 		statistic.percentage_validity = 0;
-		statistic.total_samples = 0;
-		statistic.expected_samples = 0;
-		statistic.valid_samples = 0;
+		statistic.total_samples = 0;		//num_total_samples will be assigned to it
+		statistic.expected_samples = statistic_delay.count() / sample_delay.count(); 	//An ESTIMATION of number of expected samples to be picked from Driver;
+		statistic.valid_samples = 0;		//Number of VALID samples actually considered in statistic calculation
 
 		close_thread = false;
 		r = NULL;
@@ -97,14 +105,12 @@ namespace sdrf
 		std::cout << " | Reset del sensore completato." << std::endl;
 	}
 
-	void Sensor::refresh()		//This function is called manually or automatically, in which case all sampling operation must be ATOMICAL 
+	template <class raw_elem_type, class refined_elem_type>
+	void Sensor<raw_elem_type, refined_elem_type>::refresh()		//This function is called manually or automatically, in which case all sampling operation must be ATOMICAL 
 	{
 		std::unique_lock<std::mutex> access(rw, std::defer_lock);
 		bool thread_must_exit = false;    	//JUST A COPY of close_thread (for evaluating it outside the lock)
 
-		int num_expected_samples = statistic_delay.count() / sample_delay.count(); 	//An ESTIMATION of number of expected samples to be picked from Driver
-		int num_total_samples = 0;						//Number of total samples (both VALID and INVALID) picked from Driver
-		int num_considered_samples = 0;					//Number of VALID samples considered by statistic
 
 		//Time structures for jitter/delay removal
 		std::chrono::steady_clock::time_point refresh_start = std::chrono::system_clock::now();
@@ -121,7 +127,7 @@ namespace sdrf
 				//and not put locks on elementary operations on buffers (it would cause ricursive locks!)
 				//cout<<"Thread is alive!"<<endl;
 
-				//Is thread been asked to be closed?
+				//Has thread been asked to end?
 				thread_must_exit = close_thread;
 			}
 
@@ -133,43 +139,7 @@ namespace sdrf
 				//If avg_interval minutes (alias "chrono::seconds statistic_delay") have passed since last Mean&Variance request, COMPUTE STATISTIC and RESET (before sampling again!)
 				if (std::chrono::system_clock::now() > (last_statistic_request + statistic_delay))
 				{
-					//Assign to statistic latest Mean and Variance calculated by MeanGuy
-					std::cerr << " S| Media pronta e richiesta!" << std::endl;
-					statistic.average = MeanGuy.getMean();
-					statistic.variance = MeanGuy.getVariance();
-
-					//Get number of valid samples considered in statistic calculation
-					num_considered_samples = MeanGuy.getSampleNumber();
-
-					//DEBUG: Assign to statistic number of expected samples (constant for this Sensor and therefore not necessary)
-					statistic.expected_samples = num_expected_samples;
-					//DEBUG: Assign to statistic also number of total samples, valid and invalid, taken from driver
-					statistic.total_samples = num_total_samples;
-					//DEBUG: Assign to statistic also number of valid samples taken from driver
-					statistic.valid_samples = num_considered_samples;
-
-					//Estimate STATISTIC VALIDIY:
-					// comparing number of EXPECTED samples with numer of VALID samples picked from Driver will consider clock imprecision AND errors from Driver
-					// WARNING: VALID samples can be MORE than EXPECTED samples due to clock imprecisions, resulting in validity higher than 100%: it's ok, we have more samples!
-					if (statistic.total_samples>0) statistic.percentage_validity = (num_considered_samples * 100) / num_expected_samples;
-					else statistic.percentage_validity = 0;
-					//Finally declare how to consider this statistic, in respect to a tolerance threshold
-					if (statistic.percentage_validity>THRESHOLD)
-					{
-						statistic.is_valid = true;
-					}
-					else
-					{
-						statistic.is_valid = false;
-					}
-
-					//Reset MeanGuy and number of total samples
-					MeanGuy.reset();
-					num_total_samples = 0;
-					num_considered_samples = 0;
-
-					//Notify that new statistics are now available
-					new_statistic.notify_all();
+					publish_statistics();
 
 					//FORCE LOGIC TIME SYNC: COMPUTED CLOCK REFERENCE
 					//Since real parallelism is not always possible and therefore not guaranteed, it is bad to set time on our own
@@ -199,17 +169,14 @@ namespace sdrf
 				raw_measure = sample();	//request new sample from driver
 				if (raw_measure != SDRF_VALUE_INVALID)	//ONLY IF MEASURE IS VALID..
 				{
-					MeanGuy.add(convert(raw_measure));	//..give MeanGuy next converted measure for on-line calculation
-					//MeanGuy is responsible of taking COUNT of VALID samples
+					update_statistics();
 					std::cerr << " S| Richiesta misura di " << stype() << " soddisfatta." << std::endl;
 				}
-				num_total_samples++;	//then increment COUNT of TOTAL samples
 
+				num_total_samples++;	//then increment COUNT of TOTAL samples
 
 				//Notify that a new sample is now available
 				new_sample.notify_all();
-
-
 
 			}
 
@@ -222,7 +189,7 @@ namespace sdrf
 				//Thread should wait "refresh_rate" milliseconds if is not closing
 				if (!thread_must_exit)
 				{
-					//JITTER AND DELAY CALCULATION AND REMOVAL!
+					//JITTER + DELAY CALCULATION AND REMOVAL!
 					//-----------------------------------------
 					//END: save now() as the time loop ended
 					refresh_end = std::chrono::steady_clock::now();
@@ -250,23 +217,84 @@ namespace sdrf
 
 	}
 
-	void Sensor::wait_new_sample()
+	template <class raw_elem_type, class refined_elem_type>
+	void Sensor<raw_elem_type, refined_elem_type>::publish_statistics()
+	{
+		//Assign to statistic latest Mean and Variance calculated by MeanGuy
+		std::cerr << " S| Media pronta e richiesta!" << std::endl;
+		statistic.average = MeanGuy.getMean();
+		statistic.variance = MeanGuy.getVariance();
+
+		//DEBUG: Assign to statistic number of expected samples (constant for this Sensor and therefore not necessary)
+		// statistic.expected_samples = statistic_delay.count() / sample_delay.count();		//ALREADY DONE ONCE in constructor (it is constant value)
+		//DEBUG: Assign to statistic also number of total samples, valid and invalid, taken from driver
+		statistic.total_samples = num_total_samples;
+		//DEBUG: Assign to statistic also number of valid samples taken from driver
+		statistic.valid_samples = MeanGuy.getSampleNumber();
+
+		//Estimate STATISTIC VALIDIY:
+		// comparing number of EXPECTED samples with numer of VALID samples picked from Driver will consider clock imprecision AND errors from Driver
+		// WARNING: VALID samples can be MORE than EXPECTED samples due to clock imprecisions, resulting in validity higher than 100%: it's ok, we have more samples!
+		if (statistic.total_samples>0) statistic.percentage_validity = (statistic.valid_samples * 100) / statistic.expected_samples;
+		else statistic.percentage_validity = 0;
+		//Finally declare how to consider this statistic, in respect to a tolerance threshold
+		if (statistic.percentage_validity>THRESHOLD)
+		{
+			statistic.is_valid = true;
+		}
+		else
+		{
+			statistic.is_valid = false;
+		}
+
+		//Reset MeanGuy and number of total samples
+		MeanGuy.reset();
+		num_total_samples = 0;
+
+		//Notify all that new statistics are now available
+		new_statistic.notify_all();
+	}
+
+	template <class raw_elem_type, class refined_elem_type>
+	void Sensor<raw_elem_type, refined_elem_type>::update_statistics()
+	{
+		MeanGuy.add(convert(raw_measure));	//..give MeanGuy next converted measure for on-line calculation
+
+		//MeanGuy is responsible of taking COUNT of VALID samples
+	}
+
+	template <class raw_elem_type, class refined_elem_type>
+	void Sensor<raw_elem_type, refined_elem_type>::wait_new_sample()
 	{
 		std::unique_lock<std::mutex> access(rw);
 		if (autorefresh) new_sample.wait(access);
 	}
 
-	void Sensor::wait_new_statistic()
+	template <class raw_elem_type, class refined_elem_type>
+	void Sensor<raw_elem_type, refined_elem_type>::wait_new_statistic()
 	{
 		std::unique_lock<std::mutex> access(rw);
 		if (autorefresh) new_statistic.wait(access);
 	}
 
-
-
-	uint16_t Sensor::get_raw()
+	template <class raw_elem_type, class refined_elem_type>
+	bool Sensor<raw_elem_type, refined_elem_type>::new_sample_is_ready()
 	{
-		uint16_t measure = 0;
+		std::unique_lock<std::mutex> access(rw);
+		if (autorefresh) new_sample.wait(access);
+	}
+
+	template <class raw_elem_type, class refined_elem_type>
+	bool Sensor<raw_elem_type, refined_elem_type>::new_statistic_is_ready()
+	{
+		std::unique_lock<std::mutex> access(rw);
+		if (autorefresh) new_statistic.wait(access);
+	}
+
+	template <class raw_elem_type, class refined_elem_type>
+	raw_elem_type Sensor<raw_elem_type, refined_elem_type>::get_raw()
+	{
+		raw_elem_type measure = 0;
 		std::lock_guard<std::mutex> access(rw);
 		if (board != NULL)
 		{
@@ -275,19 +303,21 @@ namespace sdrf
 				refresh();         //on demand refresh if autorefresh is FALSE
 			}
 			measure = raw_measure;
+			//p.get_future().get()
 		}
 		else std::cerr << " S| Attenzione: nessuna device allacciata al sensore.\n | Usare il metodo plug_to() per associare." << std::endl;
 		return measure;
 	}
 
-	void Sensor::plug_to(const Driver<measure_struct, uint16_t>& new_board, const std::chrono::system_clock::time_point& start_time)
+	template <class raw_elem_type, class refined_elem_type>
+	void Sensor<raw_elem_type, refined_elem_type>::plug_to(const Driver<void, raw_elem_type>& new_board, const std::chrono::system_clock::time_point& start_time)
 	{
 
 		//Reset board and also the thread if present
 		if (board != NULL) reset();
 
 		//Set new board
-		board = const_cast< Driver<measure_struct, uint16_t>* > (&new_board);
+		board = const_cast< Driver<measure_struct, raw_elem_type>* > (&new_board);
 
 
 		//---------------------------------------------------------------

@@ -7,8 +7,8 @@ namespace sdrf
 
 	///////////////////////////
 	//GENERIC DRIVER PROCEDURES
-	template <class data_type, class elem_type>
-	bool Driver<data_type, elem_type>::ready()
+	template <class raw_data_type, class raw_elem_type>
+	bool Driver<raw_data_type, raw_elem_type>::ready()
 	{
 		bool delay_elapsed;
 		if (std::chrono::steady_clock::now() <= (last_request + request_delay)) delay_elapsed = false;
@@ -21,11 +21,11 @@ namespace sdrf
 
 	}
 
-	template <class data_type, class elem_type>
-	data_type Driver<data_type, elem_type>::request_all()
+	template <class raw_data_type, class raw_elem_type>
+	raw_data_type Driver<raw_data_type, raw_elem_type>::request_all()
 	{
 		unsigned int i = 0;
-		elem_type* d = (elem_type*)&m;
+		raw_elem_type* d = reinterpret_cast<raw_elem_type>(&m);
 
 		std::lock_guard<std::mutex> access(rw);
 
@@ -38,12 +38,12 @@ namespace sdrf
 		return m;
 	}
 
-	template <class data_type, class elem_type>
-	elem_type Driver<data_type, elem_type>::request(const unsigned int type)
+	template <class raw_data_type, class raw_elem_type>
+	raw_elem_type Driver<raw_data_type, raw_elem_type>::request(const unsigned int type)
 	{
 
-		uint16_t measure = 0;
-		elem_type* d = (elem_type*)&m;	//d is a pointer accessing m as an array with offset type
+		raw_elem_type measure = 0;
+		raw_elem_type* d = reinterpret_cast<raw_elem_type>(&m);	//d is a pointer accessing m as an array with offset type
 
 		std::lock_guard<std::mutex> access(rw);
 
@@ -51,7 +51,7 @@ namespace sdrf
 		//N.B. ready() DOES NOT SAY MEASURE IS VALID OR NOT!!
 		if (ready()) state = recv_measure();
 
-		//ONLY IF "type" exists in data_type "m"...
+		//ONLY IF "type" exists in raw_data_type "m"...
 		if (type <= n_elems && type > 0)
 		{
 			//...if "state" is not SDRF_VALUE_NICE means last read failed so measure MUST BE SDRF_VALUE_INVALID    
@@ -60,7 +60,7 @@ namespace sdrf
 				measure = SDRF_VALUE_INVALID;
 				cerr << "  D| WARNING: problemi con la periferica, ultima misura non valida!" << endl;
 			}
-			//...if "state" is SDRF_VALUE_NICE means last read was successful so pick the selected measure from data_type "m"
+			//...if "state" is SDRF_VALUE_NICE means last read was successful so pick the selected measure from raw_data_type "m"
 			else
 			{
 				measure = d[type - 1];
