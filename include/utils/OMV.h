@@ -1,5 +1,5 @@
-#ifndef _SDRF_OMV_H_
-#define _SDRF_OMV_H_
+#ifndef _SDRF_UTILS_OMV_H_
+#define _SDRF_UTILS_OMV_H_
 
 
 /*
@@ -30,25 +30,29 @@ but might not be as efficient because of the division operation inside the loop.
 
 namespace sdrf
 {
+	namespace utils
+	{
 
-	class OMV {
-	private:
-		unsigned int n;
-		double mean;
-		double M2;
-		double min;
-		bool minCalc;
-	public:
-		OMV(const bool use_min_offset = false);
-		virtual ~OMV();
-		void reset();
-		void add(double x);
-		double getMean();
-		double getVariance();
-		double getMin();
-		unsigned int getSampleNumber();
-	};
+		class OMV {
+		private:
+			unsigned int n;
+			double mean;
+			double M2;
+			double min;
+			bool minCalc;
+		public:
+			OMV(const bool use_min_offset = false);
+			virtual ~OMV();
+			void reset();
+			void add(double x);
+			double getMean();
+			double getVariance();
+			double getMin();
+			unsigned int getSampleNumber();
+		};
 
+
+	}
 }
 
 

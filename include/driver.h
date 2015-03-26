@@ -69,7 +69,7 @@ namespace sdrf
 		//To mark a measure as not valid, a specific "SDRF_VALUE_INVALID" value has been defined in config.h
 
 	public:
-		Driver(const int min_delay = HARDWARE_DELAY) : n_elems(sizeof(raw_data_type) / sizeof(raw_elem_type)){
+		Driver(const unsigned int min_delay = HARDWARE_DELAY) : n_elems(sizeof(raw_data_type) / sizeof(raw_elem_type)){
 			if (min_delay <= 0) request_delay = std::chrono::duration< int, std::milli >::zero();
 			else request_delay = std::chrono::milliseconds(min_delay);
 			last_request = std::chrono::steady_clock::now() - request_delay; //This way first recv_measure is always performed regardless of timer
@@ -85,6 +85,12 @@ namespace sdrf
 		// - Tests YOUR ready() condition, which MUST extend the base one
 		// - Issues the recv_measure whenever possible (ONLY when YOUR ready() returns true)
 		// - Returns "SDRF_VALUE_INVALID" (see config.h) when YOUR LAST recv_measure returned SDRF_VALUE_ERROR
+
+		//Get Devide delay in milliseconds (because making too frequent requests is useless)
+		unsigned int getMinDelay()
+		{
+			return request_delay.count();
+		}
 
 	};
 

@@ -8,7 +8,8 @@
 
 //Internal dependencies
 #include "driver.h"
-#include "OMV.h"
+#include "utils/OMV.h"
+#include "utils/UpdateService.h"
 
 //Standard included libraries
 #include <cstdlib>
@@ -37,10 +38,23 @@
 namespace sdrf
 {
 
-	enum sensor_policy_t
+	enum polling_policy_t
 	{
-		auto_polling,
-		manual_polling
+		manual,
+		automatic
+	};
+
+	enum processing_policy_t
+	{
+		none,
+		custom,
+		online_mean_var
+	};
+
+	enum sync_policy_t
+	{
+		sync,
+		async
 	};
 
 	typedef struct _STATISTIC_STRUCT
@@ -57,6 +71,7 @@ namespace sdrf
 	template <class raw_elem_type, class refined_elem_type>
 	class Sensor					//ABSTRACT CLASS: only sub-classes can be instantiated!
 	{
+
 	protected:
 
 		//BUFFERING VARIABLES
@@ -64,10 +79,14 @@ namespace sdrf
 		//OLD:	double format_measure;		//Memorizza una versione convertita di raw_buffer - non più necessaria, ora la misura è convertita su richiesta
 		statistic_struct statistic;
 		unsigned int num_total_samples;
+		bool dynamic_sample_rate = true;
+		polling_policy_t polling_mode;
+		//sync_policy_t sync_mode;
+		processing_policy_t processing_mode;
 
 
 		//AVERAGING AND VARIANCE CALCULATION	//asdfg
-		OMV MeanGuy;							//Classe per il calcolo della media on-line (Knuth/Welford algorithm) --> vedi lista di inizializzazione del costruttore!
+		utils::OMV MeanGuy;							//Classe per il calcolo della media on-line (Knuth/Welford algorithm) --> vedi lista di inizializzazione del costruttore!
 
 		std::chrono::duration< int, std::milli > statistic_delay;	//GESTIONE STATISTIC INTERVAL: Ogni sample() del sensore viene calcolata una nuova media e varianza,
 		//basate sul valore corrente e sulla storia precedente. Ad ogni refresh(), il sensore confronta
@@ -90,8 +109,9 @@ namespace sdrf
 		virtual int mtype() = 0;					//returns the type (its code) of measure sensor requests to driver
 		raw_elem_type sample(){ return board->request(mtype()); };	//Chiamata da get_measure, semplicemente chiama board (la request() col tipo misura richiesto)
 		virtual refined_elem_type convert(const raw_elem_type) = 0;       	//THIS FUNCTIONS MUST BE SPECIALIZED BY INHERITING CLASSES
-		virtual void update_statistics();
-		virtual void publish_statistics();
+		virtual void update_statistic();
+		virtual void publish_measure();
+		virtual void publish_statistic();
 
 		//SENSOR POLLING
 		Driver<void, raw_elem_type>* board;	//Puntatore all'oggetto Driver da cui chiamare la funzione request() per chiedere il campione  *** (CASTING IS A PATCH)                 
@@ -111,7 +131,10 @@ namespace sdrf
 		std::condition_variable new_sample;
 		std::condition_variable new_statistic;
 		std::thread* r;
-		bool close_thread;
+		bool close_thread = false;
+		void closeSamplingThread();
+		utils::UpdateService measureProvisioning;
+		utils::UpdateService statisticProvisioning;
 
 
 	public:
@@ -120,10 +143,27 @@ namespace sdrf
 
 		//COSTRUTTORE & DISTRUTTORE
 		Sensor() = delete;                         		//disabling zero-argument constructor completely
-		explicit Sensor(const int sample_rate,			//sample_rate = millisecondi per l'autocampionamento (se attivato)
-			const int avg_interval,			//avg_interval = minuti ogni quanto viene resettata la media (che è calcolata on-line)
-			const bool enable_autorefresh = true,	//indica se rendere ATTIVO (autopolling) o PASSIVO (misure su richiesta) il sensore
-			const bool enable_mean_offset = false);	//indica a MeanGuy di considerare, per ogni media, un offset pari al minimo tra i campioni dell'intervallo su cui è calcolata
+		explicit Sensor
+			(
+			const polling_policy_t selected_polling,
+			const processing_policy_t selected_processing,	//if "none" or "custom" following parameters are ignored!
+			const unsigned int mean_interval = 1,			//avg_interval = minutes after which online average is periodically reset
+															//if not set, default interval is 1 minute
+			const bool enable_mean_offset = false			//offset = the minimum value is calculated in the interval and used as offset to add to mean
+															//this allows error removal on peripherals that accumulate skew over time (for example dust on a dust sensor!)
+			);
+		explicit Sensor
+			(
+			const polling_policy_t selected_polling,
+			const unsigned int sample_rate,					//force a specific value for sample_rate (default = dynamically set to the minimum of attached device)
+			const processing_policy_t selected_processing,
+			const unsigned int mean_interval = 1,			//avg_interval = minutes after which online average is periodically reset
+															//if not set, default interval is 1 minute
+			const bool enable_mean_offset = false			//offset = the minimum value is calculated in the interval and used as offset to add to mean
+															//this allows error removal on peripherals that accumulate skew over time (for example dust on a dust sensor!)
+			);
+
+
 		//N.B.	Questa funzione è UTILE SOLO PER MISURE che:
 		//	- lavorano su "spike" ovvero danno misure significative solo su alcuni campioni
 		//	- necessitano di una frequenza di campionamento elevata
@@ -135,7 +175,7 @@ namespace sdrf
 
 
 		//METODI DI ACCESSO PRIMARI (gestiscono i lock)
-		raw_elem_type get_raw();	//safe                          	//Restituisce l'ultima misura. Se autorefresh è FALSE ed è trascorso min_sample_rate
+		raw_elem_type get_raw(sync_policy_t sync_mode = sync);	//safe                          	//Restituisce l'ultima misura. Se autorefresh è FALSE ed è trascorso min_sample_rate
 		//dall'ultima chiamata, richiede anche una nuova misura (sample), altrimenti da l'ULTIMA effettuata
 		//( in futuro: IMPLEMENTARE una versione che dia il measure_code della misura restituita )
 

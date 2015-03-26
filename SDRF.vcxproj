@@ -74,16 +74,19 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="cpp\driver.cpp" />
-    <ClCompile Include="cpp\functions.cpp" />
-    <ClCompile Include="cpp\OMV.cpp" />
+    <ClCompile Include="cpp\utils\functions.cpp" />
+    <ClCompile Include="cpp\utils\OMV.cpp" />
     <ClCompile Include="cpp\sensor.cpp" />
+    <ClCompile Include="cpp\utils\UpdateService.cpp" />
+    <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\config.h" />
     <ClInclude Include="include\driver.h" />
-    <ClInclude Include="include\functions.h" />
-    <ClInclude Include="include\OMV.h" />
+    <ClInclude Include="include\utils\functions.h" />
+    <ClInclude Include="include\utils\OMV.h" />
     <ClInclude Include="include\sensor.h" />
+    <ClInclude Include="include\utils\UpdateService.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

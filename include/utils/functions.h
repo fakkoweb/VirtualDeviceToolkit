@@ -1,5 +1,5 @@
-#ifndef _SDRF_FUNCTIONS_H_
-#define _SDRF_FUNCTIONS_H_
+#ifndef _SDRF_UTILS_FUNCTIONS_H_
+#define _SDRF_UTILS FUNCTIONS_H_
 ////////////////////
 
 
@@ -37,13 +37,19 @@
 
 namespace sdrf
 {
+	namespace utils
+	{
 
-	//////////////////////////
-	// GENERIC FUNCTIONS
-	float faverage(float* array, int dim);
-	float fvariance(float* array, int dim);
+
+	/////////////////////////////
+	// GENERIC UTILITY FUNCTIONS
+
 	std::string getTimeStamp();
 
+	//returns TRUE if a <future> object is ready at the time of the call, FALSE otherwise
+	template<class return_type> bool is_ready(std::future<return_type>& f){ return f.wait_for(std::chrono::seconds(0)) == std::future_status::ready; }
+
+	}
 }
 
 
