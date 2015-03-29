@@ -35,7 +35,7 @@
 #include "sensors.h"	//for map of sensors and statistic_struct type support
 
 
-namespace sdrf
+namespace vdt
 {
 	namespace utils
 	{

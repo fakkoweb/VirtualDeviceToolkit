@@ -17,12 +17,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="cpp\driver.cpp">
-      <Filter>cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="cpp\sensor.cpp">
-      <Filter>cpp</Filter>
-    </ClCompile>
     <ClCompile Include="cpp\utils\functions.cpp">
       <Filter>cpp\utils</Filter>
     </ClCompile>
@@ -35,15 +29,15 @@
     <ClCompile Include="main.cpp">
       <Filter>cpp</Filter>
     </ClCompile>
+    <ClCompile Include="cpp\VDevice.cpp">
+      <Filter>cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="cpp\VProbe.cpp">
+      <Filter>cpp</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\config.h">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\driver.h">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\sensor.h">
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="include\utils\OMV.h">
@@ -54,6 +48,12 @@
     </ClInclude>
     <ClInclude Include="include\utils\UpdateService.h">
       <Filter>include\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="include\VDevice.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\VProbe.h">
+      <Filter>include</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

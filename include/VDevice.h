@@ -29,7 +29,7 @@
 #endif
 
 
-namespace sdrf
+namespace vdt
 {
 
 	//DEPRECATA: VDevice call usata quando i driver erano statici -> puntatore a funzione

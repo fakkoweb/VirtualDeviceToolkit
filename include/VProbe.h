@@ -7,7 +7,7 @@
 #include "config.h"
 
 //Internal dependencies
-#include "driver.h"
+#include "VDevice.h"
 #include "utils/OMV.h"
 #include "utils/UpdateService.h"
 
@@ -35,7 +35,7 @@
 
 #endif
 
-namespace sdrf
+namespace vdt
 {
 
 	enum polling_policy_t

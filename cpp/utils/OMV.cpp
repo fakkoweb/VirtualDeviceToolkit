@@ -24,7 +24,7 @@ public:
 #include <limits>
 
 
-namespace sdrf
+namespace vdt
 {
 	namespace utils
 	{

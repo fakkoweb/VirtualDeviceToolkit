@@ -4,7 +4,7 @@
 
 
 
-namespace sdrf
+namespace vdt
 {
 
 	//////////////////////////////

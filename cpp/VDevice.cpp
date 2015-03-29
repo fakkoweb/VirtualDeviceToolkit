@@ -2,7 +2,7 @@
 #include "VDevice.h"
 
 
-namespace sdrf
+namespace vdt
 {
 
 	///////////////////////////

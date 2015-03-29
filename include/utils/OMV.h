@@ -28,7 +28,7 @@ but might not be as efficient because of the division operation inside the loop.
  *      Author: Gabriele Consiglio
  */
 
-namespace sdrf
+namespace vdt
 {
 	namespace utils
 	{

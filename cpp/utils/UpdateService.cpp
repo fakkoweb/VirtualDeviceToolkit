@@ -2,7 +2,7 @@
 #include "utils/functions.h"
 
 
-namespace sdrf
+namespace vdt
 {
 	namespace utils
 	{

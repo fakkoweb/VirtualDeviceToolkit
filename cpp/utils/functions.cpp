@@ -4,7 +4,7 @@
 #include <algorithm>
 
 
-namespace sdrf
+namespace vdt
 {
 	namespace utils
 	{
