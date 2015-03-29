@@ -1,5 +1,5 @@
-#ifndef _SDRF_SENSOR_H_
-#define _SDRF_SENSOR_H_
+#ifndef _SDRF_VPROBE_H_
+#define _SDRF_VPROBE_H_
 ////////////////////
 
 
@@ -69,7 +69,7 @@ namespace sdrf
 	} statistic_struct;
 
 	template <class raw_elem_type, class refined_elem_type>
-	class Sensor					//ABSTRACT CLASS: only sub-classes can be instantiated!
+	class VProbe					//ABSTRACT CLASS: only sub-classes can be instantiated!
 	{
 
 	protected:
@@ -92,7 +92,7 @@ namespace sdrf
 		//basate sul valore corrente e sulla storia precedente. Ad ogni refresh(), il sensore confronta
 		//statistic_delay (ovvero "avg_interval" minuti) con il tempo trascorso da last_statistic_request
 		//e quando occorre preleva le statistiche da MeanGuy e lo resetta prima di ulteriori sample().
-		std::chrono::steady_clock::time_point last_statistic_request;   //last_statistic_request è l'UNICA ANCORA/RIFERIMENTO TEMPORALE che Sensor ha con l'esterno!!
+		std::chrono::steady_clock::time_point last_statistic_request;   //last_statistic_request è l'UNICA ANCORA/RIFERIMENTO TEMPORALE che VProbe ha con l'esterno!!
 		//Ad ogni statistic_delay, a last_statistic_request è sommato statistic_delay.
 		//HO UN RIFERIMENTO TEMPORALE ASSOULUTO, FISSATO IN PLUGGING PHASE (init. a "start_time")!
 
@@ -114,7 +114,7 @@ namespace sdrf
 		virtual void publish_statistic();
 
 		//SENSOR POLLING
-		Driver<void, raw_elem_type>* board;	//Puntatore all'oggetto Driver da cui chiamare la funzione request() per chiedere il campione  *** (CASTING IS A PATCH)                 
+		VDevice<void, raw_elem_type>* board;	//Puntatore all'oggetto VDevice da cui chiamare la funzione request() per chiedere il campione  *** (CASTING IS A PATCH)                 
 		bool autorefresh;                       //TRUE: pooling attivo, FALSE: campionamento solo su richiesta (get_measure)        
 		//Se autorefresh è TRUE: ogni "sample_rate" ms viene richiesta una nuova misura al driver (sample)
 		//Se autorefresh è FALSE, "sample_rate" è ignorato.
@@ -142,8 +142,8 @@ namespace sdrf
 
 
 		//COSTRUTTORE & DISTRUTTORE
-		Sensor() = delete;                         		//disabling zero-argument constructor completely
-		explicit Sensor
+		VProbe() = delete;                         		//disabling zero-argument constructor completely
+		explicit VProbe
 			(
 			const polling_policy_t selected_polling,
 			const processing_policy_t selected_processing,	//if "none" or "custom" following parameters are ignored!
@@ -152,7 +152,7 @@ namespace sdrf
 			const bool enable_mean_offset = false			//offset = the minimum value is calculated in the interval and used as offset to add to mean
 															//this allows error removal on peripherals that accumulate skew over time (for example dust on a dust sensor!)
 			);
-		explicit Sensor
+		explicit VProbe
 			(
 			const polling_policy_t selected_polling,
 			const unsigned int sample_rate,					//force a specific value for sample_rate (default = dynamically set to the minimum of attached device)
@@ -170,7 +170,7 @@ namespace sdrf
 		//	- soffrono di deviazioni FISICHE nel tempo dovute ad usura od ostrusioni.                                                                                            			
 		//La più alta misura in un intervallo non viene riportata in maniera assoluta, ma relativa alla più bassa misura di quell'intervallo!
 
-		~Sensor();	//safe
+		~VProbe();	//safe
 
 
 
@@ -204,11 +204,11 @@ namespace sdrf
 		};
 
 
-		// PLUGGING / ATTACHING PHASE: lega il Sensor ad un Driver e ne abilita il processo di lettura. VA CHIAMATO PER AVVIARE IL SENSORE!
+		// PLUGGING / ATTACHING PHASE: lega il VProbe ad un VDevice e ne abilita il processo di lettura. VA CHIAMATO PER AVVIARE IL SENSORE!
 
 		// -- WEAK TIME SYNC version --
-		//This allows to the sample() of the Sensor to call request() of the attached Driver
-		void plug_to(const Driver<void, raw_elem_type>& new_board)
+		//This allows to the sample() of the VProbe to call request() of the attached VDevice
+		void plug_to(const VDevice<void, raw_elem_type>& new_board)
 		{
 			plug_to(new_board, std::chrono::system_clock::now());	//The logic time instant where sampling begins is set HERE as now()
 		};
@@ -216,14 +216,14 @@ namespace sdrf
 		//This constructor allows you to set a "start_time" manually: it can be before or after the PLUG_TO() PHASE!
 		//Extremely useful if you want MORE Sensors TO BE IN SYNC with each other, and to AVOID JITTER!!
 		//EXPLANATION:
-		//It is impossible to start execution of a Sensor at a precise time (due to SO Scheduling, non-parallelism, etc.)
+		//It is impossible to start execution of a VProbe at a precise time (due to SO Scheduling, non-parallelism, etc.)
 		//BUT we can fix a COMMON REFERENCE TIME POINT BETWEEN MORE Sensors.
 		//Knowing also the INTERVAL, Sensors won't wake up all at the same instant or at the specified time...
 		//but they will all keep up with themselves in the specified time window(s)!!
 		//ALERT:
 		//It is also possible to set up a manual "start_time" at plug_to() call. If you do, doing it here is useless.
 		//By default, if no "start_time" is ever set, a now() will be called ALWAYS at plug_to phase!
-		void plug_to(const Driver<void, raw_elem_type>& new_board, const std::chrono::system_clock::time_point& start_time); //As above, but you set the start_point manually
+		void plug_to(const VDevice<void, raw_elem_type>& new_board, const std::chrono::system_clock::time_point& start_time); //As above, but you set the start_point manually
 
 	};
 

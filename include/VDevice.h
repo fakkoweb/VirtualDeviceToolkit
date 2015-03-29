@@ -1,5 +1,5 @@
-#ifndef _SDRF_DRIVER_H_
-#define _SDRF_DRIVER_H_
+#ifndef _SDRF_VDEVICE_H_
+#define _SDRF_VDEVICE_H_
 ////////////////////
 
 
@@ -32,7 +32,7 @@
 namespace sdrf
 {
 
-	//DEPRECATA: Driver call usata quando i driver erano statici -> puntatore a funzione
+	//DEPRECATA: VDevice call usata quando i driver erano statici -> puntatore a funzione
 	//typedef uint16_t (*driver_call)();
 
 	typedef struct _MEASURE_STRUCT
@@ -45,7 +45,7 @@ namespace sdrf
 
 	//CLASSE NON ISTANZIABILE -- Template che rappresenta una device generica che su richiesta restituisce una struct "raw_data_type" contenente N diversi "raw_elem_type"
 	template <class raw_data_type, class raw_elem_type>
-	class Driver
+	class VDevice
 	{
 	protected:
 		raw_data_type m;                        //Contains the last raw data extracted by recv_measure
@@ -69,7 +69,7 @@ namespace sdrf
 		//To mark a measure as not valid, a specific "SDRF_VALUE_INVALID" value has been defined in config.h
 
 	public:
-		Driver(const unsigned int min_delay = HARDWARE_DELAY) : n_elems(sizeof(raw_data_type) / sizeof(raw_elem_type)){
+		VDevice(const unsigned int min_delay = HARDWARE_DELAY) : n_elems(sizeof(raw_data_type) / sizeof(raw_elem_type)){
 			if (min_delay <= 0) request_delay = std::chrono::duration< int, std::milli >::zero();
 			else request_delay = std::chrono::milliseconds(min_delay);
 			last_request = std::chrono::steady_clock::now() - request_delay; //This way first recv_measure is always performed regardless of timer

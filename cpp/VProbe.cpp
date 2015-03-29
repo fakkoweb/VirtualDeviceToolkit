@@ -1,4 +1,4 @@
-#include "sensor.h"
+#include "VProbe.h"
 #include "utils/functions.h"  //for average and variance generic functions
 #include <math.h>
 
@@ -12,7 +12,7 @@ namespace sdrf
 
 	//Default constructor (no zero argument constructor is allowed)
 	template <class raw_elem_type, class refined_elem_type>
-	Sensor<raw_elem_type, refined_elem_type>::Sensor
+	VProbe<raw_elem_type, refined_elem_type>::VProbe
 		(
 		const polling_policy_t selected_polling,
 		const processing_policy_t selected_processing,	//if "none" or "custom" following parameters are ignored!
@@ -29,7 +29,7 @@ namespace sdrf
 
 	//Force sample_rate constructor (dynamic_sample_rate is set to false)
 	template <class raw_elem_type, class refined_elem_type>
-	Sensor<raw_elem_type, refined_elem_type>::Sensor
+	VProbe<raw_elem_type, refined_elem_type>::VProbe
 		(	
 		const polling_policy_t selected_polling,
 		const unsigned int sample_rate,					//force a specific value for sample_rate (default = dynamically set to the minimum of attached device)
@@ -41,7 +41,7 @@ namespace sdrf
 		) : dynamic_sample_rate(false)
 	{
 		//Call default constructor
-		Sensor(selected_polling, selected_processing, mean_interval, enable_mean_offset);
+		VProbe(selected_polling, selected_processing, mean_interval, enable_mean_offset);
 
 		//Convert sample_rate in a valid chrono type
 		if (sample_rate == 0) sample_delay = std::chrono::duration< int, std::milli >::zero();
@@ -50,7 +50,7 @@ namespace sdrf
 
 	//Destructor: only close autosampling thread to close
 	template <class raw_elem_type, class refined_elem_type>
-	Sensor<raw_elem_type, refined_elem_type>::~Sensor()
+	VProbe<raw_elem_type, refined_elem_type>::~VProbe()
 	{
 		closeSamplingThread();
 	}
@@ -60,7 +60,7 @@ namespace sdrf
 	//	- mean_interval is not reset
 	//	- policy and processing are not modified
 	template <class raw_elem_type, class refined_elem_type>
-	void Sensor<raw_elem_type, refined_elem_type>::reset()
+	void VProbe<raw_elem_type, refined_elem_type>::reset()
 	{
 		std::unique_lock<std::mutex> access(rw, std::defer_lock);
 
@@ -72,7 +72,7 @@ namespace sdrf
 		//Reset local variables
 		board = NULL;
 		raw_measure = 0;
-		num_total_samples = 0;				//Number of total samples (both VALID and INVALID) picked from Driver
+		num_total_samples = 0;				//Number of total samples (both VALID and INVALID) picked from VDevice
 		close_thread = false;
 		r = NULL;
 
@@ -82,7 +82,7 @@ namespace sdrf
 		statistic.is_valid = false;		//to be sure it will be set to true!
 		statistic.percentage_validity = 0;
 		statistic.total_samples = 0;		//num_total_samples will be assigned to it
-		statistic.expected_samples = statistic_delay.count() / sample_delay.count(); 	//An ESTIMATION of number of expected samples to be picked from Driver;
+		statistic.expected_samples = statistic_delay.count() / sample_delay.count(); 	//An ESTIMATION of number of expected samples to be picked from VDevice;
 		statistic.valid_samples = 0;		//Number of VALID samples actually considered in statistic calculation
 
 		std::cerr << "  S| Buffer e variabili resettate." << std::endl;
@@ -98,7 +98,7 @@ namespace sdrf
 
 	//Close thread routine (thread can be closed if manually started by user or automatically at destructor)
 	template <class raw_elem_type, class refined_elem_type>
-	void Sensor<raw_elem_type, refined_elem_type>::closeSamplingThread()
+	void VProbe<raw_elem_type, refined_elem_type>::closeSamplingThread()
 	{
 		std::unique_lock<std::mutex> access(rw, std::defer_lock);
 
@@ -116,7 +116,7 @@ namespace sdrf
 	}
 
 	template <class raw_elem_type, class refined_elem_type>
-	void Sensor<raw_elem_type, refined_elem_type>::refresh()		//This function is called manually or automatically, in which case all sampling operation must be ATOMICAL 
+	void VProbe<raw_elem_type, refined_elem_type>::refresh()		//This function is called manually or automatically, in which case all sampling operation must be ATOMICAL 
 	{
 		std::unique_lock<std::mutex> access(rw, std::defer_lock);
 		bool thread_must_exit = false;    	//JUST A COPY of close_thread (for evaluating it outside the lock - in the while condition)
@@ -154,7 +154,7 @@ namespace sdrf
 
 			// GET AND PUBLISH CURRENT SAMPLE + UPDATE MEAN AND VARIANCE
 			//Notice about Raw measure Conversion
-			//	Sensor does not store the converted measure since a specific "convert()" pure virtual
+			//	VProbe does not store the converted measure since a specific "convert()" pure virtual
 			//	method is used on-the-go, whenever real measure is needed:
 			//	- when user asks for a converted measure (see "get_measure()")
 			//	- when measure is passed to MeanGuy for mean and variance calculation (see below)
@@ -199,7 +199,7 @@ namespace sdrf
 	}
 
 	template <class raw_elem_type, class refined_elem_type>
-	void Sensor<raw_elem_type, refined_elem_type>::publish_measure()
+	void VProbe<raw_elem_type, refined_elem_type>::publish_measure()
 	{
 		//GET NEW SAMPLE & validity check
 		std::cerr << " S| Nuova misura di " << stype() << " richiesta al driver (" << (size_t)board << ")" << std::endl;
@@ -218,14 +218,14 @@ namespace sdrf
 	}
 
 	template <class raw_elem_type, class refined_elem_type>
-	void Sensor<raw_elem_type, refined_elem_type>::publish_statistic()
+	void VProbe<raw_elem_type, refined_elem_type>::publish_statistic()
 	{
 		//Assign to statistic latest Mean and Variance calculated by MeanGuy
 		std::cerr << " S| Media pronta e richiesta!" << std::endl;
 		statistic.average = MeanGuy.getMean();
 		statistic.variance = MeanGuy.getVariance();
 
-		//DEBUG: Assign to statistic number of expected samples (constant for this Sensor and therefore not necessary)
+		//DEBUG: Assign to statistic number of expected samples (constant for this VProbe and therefore not necessary)
 		// statistic.expected_samples = statistic_delay.count() / sample_delay.count();		//ALREADY DONE ONCE in constructor (it is constant value)
 		//DEBUG: Assign to statistic also number of total samples, valid and invalid, taken from driver
 		statistic.total_samples = num_total_samples;
@@ -233,7 +233,7 @@ namespace sdrf
 		statistic.valid_samples = MeanGuy.getSampleNumber();
 
 		//Estimate STATISTIC VALIDIY:
-		// comparing number of EXPECTED samples with numer of VALID samples picked from Driver will consider clock imprecision AND errors from Driver
+		// comparing number of EXPECTED samples with numer of VALID samples picked from VDevice will consider clock imprecision AND errors from VDevice
 		// WARNING: VALID samples can be MORE than EXPECTED samples due to clock imprecisions, resulting in validity higher than 100%: it's ok, we have more samples!
 		if (statistic.total_samples>0) statistic.percentage_validity = (statistic.valid_samples * 100) / statistic.expected_samples;
 		else statistic.percentage_validity = 0;
@@ -256,7 +256,7 @@ namespace sdrf
 	}
 
 	template <class raw_elem_type, class refined_elem_type>
-	void Sensor<raw_elem_type, refined_elem_type>::update_statistic()
+	void VProbe<raw_elem_type, refined_elem_type>::update_statistic()
 	{
 		MeanGuy.add(convert(raw_measure));	//..give MeanGuy next converted measure for on-line calculation
 
@@ -264,31 +264,31 @@ namespace sdrf
 	}
 
 	template <class raw_elem_type, class refined_elem_type>
-	void Sensor<raw_elem_type, refined_elem_type>::wait_new_sample()
+	void VProbe<raw_elem_type, refined_elem_type>::wait_new_sample()
 	{
 		if (polling_mode == automatic) measureProvisioning.waitForNextUpdate();
 	}
 
 	template <class raw_elem_type, class refined_elem_type>
-	void Sensor<raw_elem_type, refined_elem_type>::wait_new_statistic()
+	void VProbe<raw_elem_type, refined_elem_type>::wait_new_statistic()
 	{
 		statisticProvisioning.waitForNextUpdate();
 	}
 
 	template <class raw_elem_type, class refined_elem_type>
-	bool Sensor<raw_elem_type, refined_elem_type>::new_sample_is_ready()
+	bool VProbe<raw_elem_type, refined_elem_type>::new_sample_is_ready()
 	{
 		return measureProvisioning.checkForUpdates();
 	}
 
 	template <class raw_elem_type, class refined_elem_type>
-	bool Sensor<raw_elem_type, refined_elem_type>::new_statistic_is_ready()
+	bool VProbe<raw_elem_type, refined_elem_type>::new_statistic_is_ready()
 	{
 		return statisticProvisioning.checkForUpdates();
 	}
 
 	template <class raw_elem_type, class refined_elem_type>
-	raw_elem_type Sensor<raw_elem_type, refined_elem_type>::get_raw(sync_policy_t sync_mode)
+	raw_elem_type VProbe<raw_elem_type, refined_elem_type>::get_raw(sync_policy_t sync_mode)
 	{
 		raw_elem_type measure = SDRF_VALUE_INVALID;
 		std::lock_guard<std::mutex> access(rw);
@@ -301,7 +301,7 @@ namespace sdrf
 				break;
 			case async:		//the caller starts a new thread that executes refresh() only once, user may wait or check its termination
 				close_thread = true;
-				std::thread t(&Sensor::refresh, this);
+				std::thread t(&VProbe::refresh, this);
 				t.detach();
 				measureProvisioning.subscribe(new_only);
 				break;
@@ -316,7 +316,7 @@ namespace sdrf
 	}
 
 	template <class raw_elem_type, class refined_elem_type>
-	void Sensor<raw_elem_type, refined_elem_type>::plug_to(const Driver<void, raw_elem_type>& new_board, const std::chrono::system_clock::time_point& start_time)
+	void VProbe<raw_elem_type, refined_elem_type>::plug_to(const VDevice<void, raw_elem_type>& new_board, const std::chrono::system_clock::time_point& start_time)
 	{
 		std::lock_guard<std::mutex> access(rw);
 
@@ -324,7 +324,7 @@ namespace sdrf
 		if (board != NULL) reset();
 
 		//Set new board
-		board = const_cast< Driver<measure_struct, raw_elem_type>* > (&new_board);
+		board = const_cast< VDevice<measure_struct, raw_elem_type>* > (&new_board);
 
 		//Get sample_rate from current device and convert it in a valid chrono type
 		if (board != nullptr) sample_delay = std::chrono::milliseconds(board->getMinDelay());
@@ -342,7 +342,7 @@ namespace sdrf
 		{
 			//CALL OF REFRESH THREAD - Avvia il thread per l'autosampling
 			close_thread = false;
-			r = new std::thread(&Sensor::refresh, this);		// Per eseguire refresh() è richiesto this quando è un metodo della classe stessa
+			r = new std::thread(&VProbe::refresh, this);		// Per eseguire refresh() è richiesto this quando è un metodo della classe stessa
 
 			//wait_new_sample();     			// Aspettiamo che il thread abbia almeno calcolato il primo sample() per considerare il sensore "collegato"   	
 		}

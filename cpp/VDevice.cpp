@@ -1,5 +1,5 @@
 
-#include "driver.h"
+#include "VDevice.h"
 
 
 namespace sdrf
@@ -8,7 +8,7 @@ namespace sdrf
 	///////////////////////////
 	//GENERIC DRIVER PROCEDURES
 	template <class raw_data_type, class raw_elem_type>
-	bool Driver<raw_data_type, raw_elem_type>::ready()
+	bool VDevice<raw_data_type, raw_elem_type>::ready()
 	{
 		bool delay_elapsed;
 		if (std::chrono::steady_clock::now() <= (last_request + request_delay)) delay_elapsed = false;
@@ -22,7 +22,7 @@ namespace sdrf
 	}
 
 	template <class raw_data_type, class raw_elem_type>
-	raw_data_type Driver<raw_data_type, raw_elem_type>::request_all()
+	raw_data_type VDevice<raw_data_type, raw_elem_type>::request_all()
 	{
 		unsigned int i = 0;
 		raw_elem_type* d = reinterpret_cast<raw_elem_type>(&m);
@@ -39,7 +39,7 @@ namespace sdrf
 	}
 
 	template <class raw_data_type, class raw_elem_type>
-	raw_elem_type Driver<raw_data_type, raw_elem_type>::request(const unsigned int type)
+	raw_elem_type VDevice<raw_data_type, raw_elem_type>::request(const unsigned int type)
 	{
 
 		raw_elem_type measure = 0;
