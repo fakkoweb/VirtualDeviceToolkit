@@ -1,5 +1,5 @@
-#ifndef _SDRF_UTILS_UPDATESERVICE_H_
-#define _SDRF_UTILS_UPDATESERVICE_H_
+#ifndef _VDT_UTILS_UPDATESERVICE_H_
+#define _VDT_UTILS_UPDATESERVICE_H_
 ////////////////////
 
 #include <map>
@@ -13,7 +13,6 @@ namespace vdt
 {
 	namespace utils
 	{
-
 
 		enum freshness_policy_t
 		{

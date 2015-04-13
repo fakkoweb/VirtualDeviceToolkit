@@ -1,5 +1,5 @@
-#ifndef _SDRF_CONFIG_H_
-#define _SDRF_CONFIG_H_
+#ifndef _VDT_CONFIG_H_
+#define _VDT_CONFIG_H_
 
 
 //N.B.: Global variables are parameters loaded and assigned with param_load()
@@ -20,13 +20,13 @@
 //#define INT_HUMID_lfid  0
 
 //Costanti per esprimere lo status delle funzioni
-#define SDRF_STATUS_BUSY	1
-#define SDRF_STATUS_IDLE	0
+#define VDT_STATUS_BUSY	1
+#define VDT_STATUS_IDLE	0
 
 //Costanti per esprimere l'esito delle funzioni
-#define SDRF_VALUE_ERROR	1
-#define SDRF_VALUE_NICE	0
-#define SDRF_VALUE_ABORTED	-1
+#define VDT_VALUE_ERROR	1
+#define VDT_VALUE_NICE	0
+#define VDT_VALUE_ABORTED	-1
 
 //Costanti per distinguere i tipi di misure
 #define TEMPERATURE    1
@@ -35,7 +35,7 @@
 
 //Costante per esprimere una misura non valida o non disponibile
 #define NA	-1	//ATTENZIONE: deve essere negativo (perché le misure raw da sensore variano in 0-255)
-#define SDRF_VALUE_INVALID 0xFFFF
+#define VDT_VALUE_INVALID 0xFFFF
 
 #define THRESHOLD 60
 //Costanti per il prelievo misure  --> specificali in "parameters.json"

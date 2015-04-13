@@ -1,5 +1,5 @@
-#ifndef _SDRF_UTILS_OMV_H_
-#define _SDRF_UTILS_OMV_H_
+#ifndef _VDT_UTILS_OMV_H_
+#define _VDT_UTILS_OMV_H_
 
 
 /*
@@ -56,4 +56,4 @@ namespace vdt
 }
 
 
-#endif /* _SDRF_OMV_H_ */
+#endif /* _VDT_OMV_H_ */

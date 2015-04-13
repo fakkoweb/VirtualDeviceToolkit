@@ -1,5 +1,5 @@
-#ifndef _SDRF_UTILS_FUNCTIONS_H_
-#define _SDRF_UTILS FUNCTIONS_H_
+#ifndef _VDT_UTILS_FUNCTIONS_H_
+#define _VDT_UTILS FUNCTIONS_H_
 ////////////////////
 
 

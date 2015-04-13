@@ -47,9 +47,6 @@ namespace vdt
 			case new_only:
 				newSubscription.new_update_available = false;
 				break;
-			default:
-				newSubscription.new_update_available = true;
-				break;
 			}
 
 			subscribersList.insert(subscriberRow(std::this_thread::get_id(), newSubscription));
@@ -142,7 +139,8 @@ namespace vdt
 			else
 			{
 				//NO: not subscribed yet. Subscribe and consume latest update (when subscribing is implicit, first update is always TRUE)
-				subscribe();													//new_update_available flag is initialized to TRUE for me!
+				subscribe();
+				subscriberFound = subscribersList.find(std::this_thread::get_id());
 			}
 
 			//Then consume update for me (if any)
